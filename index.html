@@ -32,7 +32,6 @@
       100% { background-position: 0% 50%; }
     }
 
-    /* Card */
     .card {
       width: min(92%, 420px);
       padding: 40px 30px 45px;
@@ -53,7 +52,6 @@
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    /* Glow ring */
     .card::before {
       content: "";
       position: absolute;
@@ -86,35 +84,49 @@
       line-height: 1.35;
     }
 
-    .buttons {
-      position: relative;
+    /* Two separate zones for buttons */
+    .buttons{
+      display: flex;
+      gap: 14px;
       height: 84px;
       margin-top: 6px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .slot{
+      flex: 1;
+      height: 84px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     button {
       position: absolute;
+      top: 10px;
       padding: 14px 36px;
       border-radius: 40px;
       border: none;
       font-size: 16px;
       font-weight: 500;
       cursor: pointer;
-      transition: transform 0.25s ease, box-shadow 0.25s ease;
       box-shadow: 0 10px 25px rgba(0,0,0,0.15);
       user-select: none;
       -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
     }
 
     button:active { transform: scale(0.94); }
 
     #yes {
-      left: 12%;
-      top: 10px;
+      left: 8px;
       background: linear-gradient(135deg, #ff4d6d, #ff758f);
       color: #fff;
       box-shadow: 0 15px 35px rgba(255,77,109,0.55);
-      z-index: 2; /* zawsze na wierzchu */
+      z-index: 2;
     }
 
     #yes:hover {
@@ -123,11 +135,14 @@
     }
 
     #no {
-      left: 55%;
-      top: 10px;
+      left: 8px;
       background: rgba(255,255,255,0.9);
       color: #777;
       z-index: 1;
+
+      /* szybciej i płynniej ucieka */
+      transition: left 0.12s ease, top 0.12s ease;
+      will-change: left, top;
     }
 
     .hint {
@@ -161,8 +176,8 @@
     .success img {
       width: 100%;
       max-width: 340px;
-      height: 240px;       /* dopasuj jeśli chcesz */
-      object-fit: contain; /* kluczowe: cały gif widoczny */
+      height: 240px;
+      object-fit: contain;
       border-radius: 18px;
       box-shadow: 0 18px 45px rgba(0,0,0,0.18);
       background: rgba(255,255,255,0.55);
@@ -193,8 +208,6 @@
       h2 { font-size: 23px; }
       .emoji { font-size: 58px; }
       button { padding: 12px 28px; font-size: 15px; }
-      #yes { left: 8%; }
-      #no { left: 55%; }
       .success img { height: 220px; }
     }
   </style>
@@ -209,8 +222,13 @@
       <h2>Kasiu,<br>zostaniesz moją Walentynką?</h2>
 
       <div class="buttons" id="buttonsArea">
-        <button id="yes">Tak 💖</button>
-        <button id="no">Nie 🙈</button>
+        <div class="slot slot-yes">
+          <button id="yes">Tak 💖</button>
+        </div>
+
+        <div class="slot slot-no" id="noArea">
+          <button id="no">Nie 🙈</button>
+        </div>
       </div>
 
       <div class="hint">Niektóre historie miłosne nie uznają „nie” ✨</div>
@@ -220,7 +238,7 @@
     <div class="success" id="successView">
       <div class="emoji" style="animation:none;">💘</div>
       <h3>Najlepsza decyzja w historii! 😄</h3>
-      <p>U da best. Teraz oficjalnie: Walentynki = my 💞</p>
+       <p>Walentynki będą sztosem. Przygotuj się na dużo uśmiechu 💞</p>
 
       <img
         src="https://media.giphy.com/media/NIlTrouX7jifoTux2O/giphy.gif"
@@ -242,53 +260,54 @@
 
     const questionView = document.getElementById("questionView");
     const successView = document.getElementById("successView");
-    const buttonsArea = document.getElementById("buttonsArea");
+    const noArea = document.getElementById("noArea");
 
-    // "Nie" ucieka delikatnie, tylko po prawej stronie i NIGDY nie nachodzi na "Tak"
-    noBtn.addEventListener("mouseenter", () => {
-      hoverSound.currentTime = 0;
-      hoverSound.play();
-
-      const areaRect = buttonsArea.getBoundingClientRect();
-      const yesRect = yesBtn.getBoundingClientRect();
+    function moveNoWithinBox() {
+      const areaRect = noArea.getBoundingClientRect();
       const btnW = noBtn.offsetWidth;
       const btnH = noBtn.offsetHeight;
 
       const padding = 8;
 
-      // Tylko prawa część obszaru (żeby nie wjechał na "Tak")
-      const minX = Math.max((areaRect.width * 0.58), padding);
+      // pełny zakres w obrębie prawego slota
+      const minX = padding;
       const maxX = Math.max(minX, areaRect.width - btnW - padding);
 
-      // Mały zakres Y (żeby nie latał po całej karcie)
-      const minY = 10;
-      const maxY = Math.max(minY, 10 + 38);
+      const minY = padding;
+      const maxY = Math.max(minY, areaRect.height - btnH - padding);
 
-      function overlapsYes(left, top) {
-        const noLeft = areaRect.left + left;
-        const noTop = areaRect.top + top;
-        const noRight = noLeft + btnW;
-        const noBottom = noTop + btnH;
-
-        const pad = 10; // dystans bezpieczeństwa
-
-        return !(
-          noRight < yesRect.left - pad ||
-          noLeft > yesRect.right + pad ||
-          noBottom < yesRect.top - pad ||
-          noTop > yesRect.bottom + pad
-        );
-      }
-
-      let left, top;
-      for (let i = 0; i < 12; i++) {
-        left = minX + Math.random() * (maxX - minX);
-        top  = minY + Math.random() * (maxY - minY);
-        if (!overlapsYes(left, top)) break;
-      }
+      const left = minX + Math.random() * (maxX - minX);
+      const top  = minY + Math.random() * (maxY - minY);
 
       noBtn.style.left = left + "px";
       noBtn.style.top  = top + "px";
+    }
+
+    // ucieczka natychmiast po najechaniu
+    noBtn.addEventListener("mouseenter", () => {
+      hoverSound.currentTime = 0;
+      hoverSound.play();
+      moveNoWithinBox();
+    });
+
+    // ucieczka szybciej: reaguje na zbliżanie kursora w obrębie prawej ramki
+    noArea.addEventListener("mousemove", (e) => {
+      const btn = noBtn.getBoundingClientRect();
+
+      const cx = btn.left + btn.width / 2;
+      const cy = btn.top + btn.height / 2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const dist = Math.hypot(dx, dy);
+
+      // większa wartość => ucieka częściej (bardziej "hard mode")
+      const triggerDistance = 95;
+
+      if (dist < triggerDistance) {
+        hoverSound.currentTime = 0;
+        hoverSound.play();
+        moveNoWithinBox();
+      }
     });
 
     // Klik "Tak" -> widok sukcesu + konfetti
